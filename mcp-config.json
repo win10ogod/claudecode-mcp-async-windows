@@ -1,9 +1,9 @@
 {
   "mcpServers": {
-    "claude-code": {
-      "command": "python3",
+    "claude-code-mcp": {
+      "command": "uvx",
       "args": [
-        "/Users/a1-6/mimic/claude-code-mcp/claude_code_mcp_server.py"
+        "claudecode-mcp-async"
       ],
       "description": "Claude Code MCP Server - Execute Claude Code tasks asynchronously"
     }

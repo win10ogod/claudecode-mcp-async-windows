@@ -13,15 +13,15 @@ Enable Claude Code to spawn child Claude Code sessions for parallel task executi
 
 ## Quick Start
 
-### 1. Install
+### 🚀 Install with UVX
+
+Zero configuration - just run:
 
 ```bash
-git clone https://github.com/jeanchristophe13v/claudecode-mcp-async.git
-cd claudecode-mcp-async
-chmod +x claudecode_mcp_async_server.py
+uvx claudecode-mcp-async
 ```
 
-### 2. Configure Claude Code
+### Configure Claude Code
 
 Add to your `~/.claude/settings.json`:
 
@@ -29,113 +29,101 @@ Add to your `~/.claude/settings.json`:
 {
   "mcpServers": {
     "claude-code-mcp": {
-      "command": "python3",
-      "args": ["/absolute/path/to/claudecode-mcp-async/claudecode_mcp_async_server.py"],
+      "command": "uvx",
+      "args": ["claudecode-mcp-async"],
       "env": {}
     }
   }
 }
 ```
 
-> **Tip**: Use absolute path. Replace `/absolute/path/to/` with your actual path.
-
-### 3. Restart Claude Code
+### Restart Claude Code
 
 Reload or restart Claude Code to load the MCP server.
 
-## Usage
+## Usage Examples
 
-### Example: Async execution (recommended)
+### 🚀 Async Execution (Game Changer!)
 
-The key advantage is **non-blocking execution** - start a task and continue working immediately.
+Start a long task and continue working immediately:
 
-```python
-# Start a long-running task in background
-task = claude_code_execute_async(
-    prompt="Analyze all Python files and generate a comprehensive report",
-    working_dir="/path/to/project",
-    skip_permissions=True
-)
-# ✅ Returns immediately with Task ID: abc12345
+**You:**
+> Please analyze the entire project code and generate a comprehensive technical report
 
-# Continue your work while Claude Code runs in background
-# ... do other things ...
+**Claude:**
+I'll analyze your entire project and generate a technical report. This is a large task, so I'll start it asynchronously...
 
-# Check result when ready
-result = claude_code_check_result(task_id="abc12345")
-```
+✅ **Task Started** (Task ID: abc12345)
+You can continue working on other things while it runs in the background!
 
-### Example: Parallel execution
+**You:** (Continue working immediately)
+> While the report is generating, help me write some unit tests
+
+**Claude:**
+Sure! Let me write those unit tests for you...
+
+**You:** (A few minutes later)
+> Can you check if the report task is finished?
+
+**Claude:**
+✅ **Report Complete!**
+
+[View Detailed Technical Report]
+- Project structure analysis
+- Code quality assessment
+- Performance optimization recommendations
+- Security audit results
+
+### ⚡ Parallel Execution
 
 Run multiple tasks simultaneously:
 
+**You:**
+> I need to do three things at once:
+> 1. Generate unit tests for utils.py
+> 2. Refactor database.py to use async/await
+> 3. Add type hints to all functions in api.py
+
+**Claude:**
+I'll start all three tasks in parallel!
+
+🔄 **Task 1 Started** (Task ID: task1) - Generating unit tests
+🔄 **Task 2 Started** (Task ID: task2) - Refactoring database code
+🔄 **Task 3 Started** (Task ID: task3) - Adding type hints
+
+All tasks are running in parallel...
+
+**You:** (Later)
+> Are all three tasks finished?
+
+**Claude:**
+✅ **All Complete!**
+
+- ✅ Task 1: Unit tests for utils.py generated
+- ✅ Task 2: database.py refactored to async mode
+- ✅ Task 3: Type hints added to api.py functions
+
+### 🎯 Quick Sync Tasks
+
+For simple immediate tasks:
+
+**You:**
+> Write a Python function to validate email addresses
+
+**Claude:**
 ```python
-# Start multiple tasks at once
-task1 = claude_code_execute_async(
-    prompt="Generate unit tests for utils.py"
-)
+import re
 
-task2 = claude_code_execute_async(
-    prompt="Refactor database.py to use async/await"
-)
+def validate_email(email):
+    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    return re.match(pattern, email) is not None
 
-task3 = claude_code_execute_async(
-    prompt="Add type hints to all functions in api.py"
-)
-
-# All three tasks run in parallel
-# Check results when ready
-result1 = claude_code_check_result(task_id=task1)
-result2 = claude_code_check_result(task_id=task2)
-result3 = claude_code_check_result(task_id=task3)
+# Usage examples
+print(validate_email("user@example.com"))  # True
+print(validate_email("invalid-email"))    # False
 ```
 
-### Example: Synchronous execution
-
-For simple tasks that need immediate results:
-
-```python
-result = claude_code_execute(
-    prompt="Write a Python function to validate email addresses",
-    skip_permissions=True
-)
-# ⏳ Blocks until completion, then returns result
-```
-
-## API Reference
-
-### `claude_code_execute_async`
-Start a task in background, return immediately.
-
-**Parameters:**
-- `prompt` (required): Task description
-- `working_dir` (optional): Working directory
-- `model` (optional): "sonnet", "opus", or "haiku"
-- `skip_permissions` (optional): Skip permission checks (default: true)
-
-**Returns:** Task ID string
-
-### `claude_code_check_result`
-Check async task status.
-
-**Parameters:**
-- `task_id` (required): Task ID from `claude_code_execute_async`
-
-**Returns:**
-- `running`: Task in progress
-- `completed`: Task finished with result
-
-### `claude_code_execute`
-Synchronous execution (blocks until completion).
-
-**Parameters:**
-- `prompt` (required): Task description
-- `working_dir` (optional): Working directory
-- `model` (optional): "sonnet", "opus", or "haiku"
-- `timeout` (optional): Timeout in seconds
-- `skip_permissions` (optional): Skip permission checks (default: true)
-
-**Returns:** Task result
+✅ **Task Complete!**
 
 ## Why Async?
 

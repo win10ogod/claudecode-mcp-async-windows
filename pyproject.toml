@@ -3,18 +3,18 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "claudecode-mcp-async"
+name = "claudecode-mcp-async-windows"
 version = "1.0.0"
-description = "Asynchronous MCP wrapper for Claude Code CLI"
+description = "Asynchronous MCP wrapper for Claude Code CLI with Windows support"
 readme = "README.md"
 license = {file = "LICENSE"}
 authors = [
     {name = "jeanchristophe13v"},
 ]
 maintainers = [
-    {name = "jeanchristophe13v"},
+    {name = "win10ogod"},
 ]
-keywords = ["mcp", "claude-code", "async", "cli"]
+keywords = ["mcp", "claude-code", "async", "cli", "windows", "cross-platform"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -41,12 +41,12 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/jeanchristophe13v/claudecode-mcp-async"
-Repository = "https://github.com/jeanchristophe13v/claudecode-mcp-async"
-Issues = "https://github.com/jeanchristophe13v/claudecode-mcp-async/issues"
+Homepage = "https://github.com/win10ogod/claudecode-mcp-async-windows"
+Repository = "https://github.com/win10ogod/claudecode-mcp-async-windows"
+Issues = "https://github.com/win10ogod/claudecode-mcp-async-windows/issues"
 
 [project.scripts]
-claudecode-mcp-async = "claudecode_mcp_async_server:main"
+claudecode-mcp-async-windows = "claudecode_mcp_async_server:main"
 
 [tool.setuptools]
 py-modules = ["claudecode_mcp_async_server"]

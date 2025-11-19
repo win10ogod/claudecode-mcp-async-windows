@@ -12,60 +12,81 @@ import time
 import logging
 import signal
 import traceback
+import platform
+import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+# 检测操作系统
+IS_WINDOWS = platform.system() == "Windows"
+IS_POSIX = os.name == 'posix'
+
+# 配置跨平台的临时目录
+if IS_WINDOWS:
+    TEMP_BASE = Path(tempfile.gettempdir())
+else:
+    TEMP_BASE = Path("/tmp")
+
+LOG_FILE = TEMP_BASE / "claude_code_mcp_debug.log"
+
 # 配置日志系统
 logging.basicConfig(
-    filename='/tmp/claude_code_mcp_debug.log',
+    filename=str(LOG_FILE),
     level=logging.DEBUG,
     format='%(asctime)s - %(levelname)s - [%(funcName)s] %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S'
 )
-logging.info("=== Claude Code MCP Server Starting ===")
+logging.info(f"=== Claude Code MCP Server Starting on {platform.system()} ===")
 
 # 任务存储目录
-TASK_DIR = Path("/tmp/claude_code_tasks")
+TASK_DIR = TEMP_BASE / "claude_code_tasks"
 TASK_DIR.mkdir(exist_ok=True)
+logging.info(f"Task directory: {TASK_DIR}")
 
 # ============================================
-# 僵尸进程自动回收机制
+# 僵尸进程自动回收机制 (POSIX only)
 # ============================================
-def sigchld_handler(signum, frame):
-    """
-    SIGCHLD 信号处理器：自动回收已终止的子进程，防止僵尸进程累积
+if IS_POSIX:
+    def sigchld_handler(signum, frame):
+        """
+        SIGCHLD 信号处理器：自动回收已终止的子进程，防止僵尸进程累积
 
-    当子进程终止时，内核会向父进程发送 SIGCHLD 信号。
-    这个处理器会被自动调用，通过 os.waitpid() 回收所有已终止的子进程。
-    """
-    while True:
-        try:
-            # os.waitpid(-1, os.WNOHANG):
-            #   -1: 等待任意子进程
-            #   os.WNOHANG: 非阻塞模式，如果没有已终止的子进程立即返回 (0, 0)
-            pid, status = os.waitpid(-1, os.WNOHANG)
+        当子进程终止时，内核会向父进程发送 SIGCHLD 信号。
+        这个处理器会被自动调用，通过 os.waitpid() 回收所有已终止的子进程。
 
-            if pid == 0:
-                # 没有更多已终止的子进程
+        注意：此功能仅在 POSIX 系统（Linux/macOS）上可用。
+        Windows 使用不同的进程管理机制，不需要显式回收僵尸进程。
+        """
+        while True:
+            try:
+                # os.waitpid(-1, os.WNOHANG):
+                #   -1: 等待任意子进程
+                #   os.WNOHANG: 非阻塞模式，如果没有已终止的子进程立即返回 (0, 0)
+                pid, status = os.waitpid(-1, os.WNOHANG)
+
+                if pid == 0:
+                    # 没有更多已终止的子进程
+                    break
+
+                # 记录回收信息
+                exit_code = os.WEXITSTATUS(status) if os.WIFEXITED(status) else -1
+                logging.debug(f"Reaped child process PID {pid}, exit_code={exit_code}, status={status}")
+
+            except ChildProcessError:
+                # 没有子进程了
+                break
+            except Exception as e:
+                # 处理其他异常（不应该发生，但保险起见）
+                logging.warning(f"Error in SIGCHLD handler: {e}")
                 break
 
-            # 记录回收信息
-            exit_code = os.WEXITSTATUS(status) if os.WIFEXITED(status) else -1
-            logging.debug(f"Reaped child process PID {pid}, exit_code={exit_code}, status={status}")
-
-        except ChildProcessError:
-            # 没有子进程了
-            break
-        except Exception as e:
-            # 处理其他异常（不应该发生，但保险起见）
-            logging.warning(f"Error in SIGCHLD handler: {e}")
-            break
-
-# 注册 SIGCHLD 信号处理器
-# 注意：在某些系统上，默认行为是 SIG_IGN（忽略），这会导致子进程自动回收
-# 但显式设置处理器可以让我们记录日志，更好地调试
-signal.signal(signal.SIGCHLD, sigchld_handler)
-logging.info("SIGCHLD handler registered for automatic zombie process reaping")
+    # 注册 SIGCHLD 信号处理器
+    # 注意：在某些系统上，默认行为是 SIG_IGN（忽略），这会导致子进程自动回收
+    # 但显式设置处理器可以让我们记录日志，更好地调试
+    signal.signal(signal.SIGCHLD, sigchld_handler)
+    logging.info("SIGCHLD handler registered for automatic zombie process reaping (POSIX)")
+else:
+    logging.info("Windows detected: SIGCHLD handler not needed (Windows handles process cleanup automatically)")
 
 def safe_read_file(file_path: Path) -> str:
     """安全地读取文件，处理各种编码和异常问题"""
@@ -96,15 +117,28 @@ def safe_read_file(file_path: Path) -> str:
         return f"[Unexpected error: {e}]"
 
 def is_process_alive(pid: int) -> bool:
-    """检测进程是否还在运行（排除僵尸进程）"""
+    """
+    检测进程是否还在运行（排除僵尸进程）
+
+    跨平台实现：
+    - Windows: 使用 os.kill(pid, 0) 检测（Windows 没有僵尸进程概念）
+    - POSIX: 使用 ps 命令检测并排除僵尸进程
+    """
     if pid is None:
         return False
 
     try:
         # 发送信号 0 检测进程是否存在
+        # Windows: signal.CTRL_C_EVENT (0) 或 signal.CTRL_BREAK_EVENT
+        # POSIX: signal 0 只检查权限，不发送实际信号
         os.kill(pid, 0)
 
-        # 进程存在，但需要检查是否为僵尸进程
+        # Windows 不需要检查僵尸进程（Windows 自动清理）
+        if IS_WINDOWS:
+            logging.debug(f"PID {pid} is alive (Windows)")
+            return True
+
+        # POSIX: 进程存在，但需要检查是否为僵尸进程
         try:
             # 使用 ps 命令检查进程状态
             result = subprocess.run(
@@ -118,11 +152,13 @@ def is_process_alive(pid: int) -> bool:
                 stat = result.stdout.strip()
                 # 如果状态以 'Z' 开头，说明是僵尸进程
                 if stat.startswith('Z'):
-                    logging.debug(f"PID {pid} is a zombie process")
+                    logging.debug(f"PID {pid} is a zombie process (POSIX)")
                     return False
+                logging.debug(f"PID {pid} is alive, state={stat} (POSIX)")
                 return True
             else:
                 # ps 命令失败，进程可能已经不存在
+                logging.debug(f"ps command failed for PID {pid}, assuming dead")
                 return False
         except Exception as e:
             logging.warning(f"Failed to check process state for PID {pid}: {e}")
@@ -131,10 +167,19 @@ def is_process_alive(pid: int) -> bool:
 
     except ProcessLookupError:
         # 进程不存在
+        logging.debug(f"PID {pid} not found (ProcessLookupError)")
         return False
     except PermissionError:
         # 进程存在但没有权限，假设它还活着
+        logging.debug(f"PID {pid} exists but no permission (assuming alive)")
         return True
+    except OSError as e:
+        # Windows 可能抛出 OSError 而不是 ProcessLookupError
+        if IS_WINDOWS and e.winerror == 87:  # ERROR_INVALID_PARAMETER
+            logging.debug(f"PID {pid} not found (Windows OSError)")
+            return False
+        logging.warning(f"OSError checking PID {pid}: {e}")
+        return False
     except Exception as e:
         logging.warning(f"Unexpected error checking PID {pid}: {e}")
         return False
@@ -258,14 +303,18 @@ def start_claude_async(
     # 启动后台进程
     try:
         with open(stdout_file, 'w') as stdout_f, open(stderr_file, 'w') as stderr_f:
+            # 跨平台进程创建参数
+            # start_new_session=True 在不同平台上的行为：
+            # - POSIX: 创建新会话组，子进程不受父进程信号影响
+            # - Windows: 创建新进程组，CTRL_C_EVENT 等不会传播
             proc = subprocess.Popen(
                 cmd,
-                stdin=subprocess.DEVNULL,  # 重定向 stdin 到 /dev/null，避免子进程竞争读取父进程的 stdin
+                stdin=subprocess.DEVNULL,  # 重定向 stdin 到 /dev/null (POSIX) 或 NUL (Windows)
                 stdout=stdout_f,
                 stderr=stderr_f,
                 text=True,
                 cwd=cwd,
-                start_new_session=True
+                start_new_session=True  # 支持跨平台
             )
 
         logging.info(f"Task {task_id} started with PID {proc.pid}")

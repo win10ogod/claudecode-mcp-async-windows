@@ -10,6 +10,8 @@ Enable Claude Code to spawn child Claude Code sessions for parallel task executi
 - ✅ **Multi-instance parallelism** - Run multiple Claude Code sessions simultaneously
 - ✅ **Automatic cleanup** - No zombie processes
 - ✅ **Zero config** - Works out of the box
+- ✅ **Cross-platform** - Supports Windows, Linux, and macOS
+- ✅ **CI/CD ready** - GitHub Actions workflows included
 
 ## Quick Start
 
@@ -18,7 +20,7 @@ Enable Claude Code to spawn child Claude Code sessions for parallel task executi
 Zero configuration - just run:
 
 ```bash
-uvx claudecode-mcp-async
+uvx claudecode-mcp-async-windows
 ```
 
 ### Configure Claude Code
@@ -30,7 +32,7 @@ Add to your `~/.claude/settings.json`:
   "mcpServers": {
     "claude-code-mcp": {
       "command": "uvx",
-      "args": ["claudecode-mcp-async"],
+      "args": ["claudecode-mcp-async-windows"],
       "env": {}
     }
   }
@@ -141,18 +143,79 @@ print(validate_email("invalid-email"))    # False
 
 **Server not showing up?**
 - Use absolute path in config
-- Run: `chmod +x claudecode_mcp_async_server.py`
+- Linux/macOS: Run `chmod +x claudecode_mcp_async_server.py`
 - Restart Claude Code
 
 **Task stuck in "running"?**
 - Wait a moment, large tasks take time
-- Check: `ls -la /tmp/claude_code_tasks/`
-- View logs: `tail -f /tmp/claude_code_mcp_debug.log`
+- Check task files:
+  - **Linux/macOS:** `ls -la /tmp/claude_code_tasks/`
+  - **Windows:** `dir %TEMP%\claude_code_tasks\`
+- View logs:
+  - **Linux/macOS:** `tail -f /tmp/claude_code_mcp_debug.log`
+  - **Windows:** `type %TEMP%\claude_code_mcp_debug.log`
+
+**Platform-specific notes:**
+- Windows: Automatic process cleanup (no zombie processes)
+- POSIX: Uses SIGCHLD handler for process cleanup
+- All platforms: Uses platform-appropriate temp directories
 
 ## Requirements
 
 - Python 3.6+
 - Claude Code CLI installed
+
+## Development
+
+### Building from Source
+
+Using `uv` (recommended):
+
+```bash
+# Install uv if you haven't already
+pip install uv
+
+# Build the package
+uv build
+
+# Install locally
+uv pip install dist/*.whl --system
+```
+
+### GitHub Actions
+
+This project includes automated workflows:
+
+1. **Test Workflow** (`.github/workflows/test.yml`)
+   - Runs on: Windows, Linux, macOS
+   - Python versions: 3.8, 3.9, 3.10, 3.11, 3.12
+   - Triggered on: push to main/develop/claude branches, pull requests
+   - Actions:
+     - Build with `uv`
+     - Run import tests
+     - Lint with flake8, black, isort
+
+2. **Publish Workflow** (`.github/workflows/publish.yml`)
+   - Builds distribution packages using `uv`
+   - Publishes to PyPI on release
+   - Uploads to GitHub Releases
+   - Supports TestPyPI for testing
+
+### Publishing to PyPI
+
+**Option 1: Automatic (GitHub Release)**
+1. Create a new release on GitHub
+2. Workflow automatically builds and publishes to PyPI
+
+**Option 2: Manual (TestPyPI)**
+1. Go to Actions → Publish to PyPI
+2. Run workflow manually
+3. Set `test_pypi` to `true` for TestPyPI
+
+**Setting up PyPI Publishing:**
+1. Configure trusted publishing in your PyPI project settings
+2. Add environment `pypi` to your GitHub repository
+3. No API tokens needed (uses OIDC)
 
 ## License
 

@@ -3,9 +3,9 @@
     "claude-code-mcp": {
       "command": "uvx",
       "args": [
-        "claudecode-mcp-async"
+        "claudecode-mcp-async-windows"
       ],
-      "description": "Claude Code MCP Server - Execute Claude Code tasks asynchronously"
+      "description": "Claude Code MCP Server - Execute Claude Code tasks asynchronously (Windows, Linux, macOS)"
     }
   }
 }

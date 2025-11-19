@@ -20,7 +20,7 @@ Enable Claude Code to spawn child Claude Code sessions for parallel task executi
 Zero configuration - just run:
 
 ```bash
-uvx claudecode-mcp-async
+uvx claudecode-mcp-async-windows
 ```
 
 ### Configure Claude Code
@@ -32,7 +32,7 @@ Add to your `~/.claude/settings.json`:
   "mcpServers": {
     "claude-code-mcp": {
       "command": "uvx",
-      "args": ["claudecode-mcp-async"],
+      "args": ["claudecode-mcp-async-windows"],
       "env": {}
     }
   }
